@@ -8,11 +8,19 @@ var fs = require('fs');
 var mkdirp = require('mkdirp');
 var chalk = require('chalk');
 var watch = require('gulp-watch');
+var webserver = require('gulp-webserver');
 
 //Chalk colors
 var error = chalk.bold.red;
 var success = chalk.green;
 var regular = chalk.white;
+
+serveDir = './build',
+
+server = {
+    host: 'localhost',
+    port: '5000'
+},
 
 gulp.task('watch', (done) => {
 	gulp.watch('./src/js/**/*.js', gulp.series('build-js', 'zip', 'check'));
@@ -34,6 +42,18 @@ gulp.task('init', (done) => {
 			});
 		});
 	});
+});
+
+gulp.task('serve', (done) => {
+    gulp.src(serveDir)
+        .pipe(webserver({
+            host: server.host,
+            port: server.port,
+            fallback: 'index.html',
+            livereload: false,
+            directoryListing: false,
+            open: false,
+    }));
 });
 
 gulp.task('build-js', (done) => {
