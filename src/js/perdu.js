@@ -1,16 +1,134 @@
 
-var map = (function() {
+var camera = (function() {
+    var _ctx = null;
+    var _width = 0;
+    var _height = 0;
+    var _resolution = 0;
+    var _spacing = 0;
+    var _focalLength = 0;
+    var _range = 0;
+    var _lightRange = 0;
+    var _scale = 0;
+
+    var _init = function(canvas, resolution, focalLength) {
+        _ctx = canvas.getContext('2d');
+        _width = canvas.width = window.innerWidth * 0.5;
+        _height = canvas.height = window.innerHeight * 0.5;
+        _resolution = resolution;
+        _spacing = _width / resolution;
+        _focalLength = focalLength || 0.8;
+        _range = MOBILE ? 8 : 14;
+        _lightRange = 5;
+        _scale = (_width + _height) / 1200;
+    };
+
+    var _render = function(player, map) {
+        _drawSky(player.direction, map.skybox, map.light);
+        _drawColumns(player, map);
+        _drawWeapon(player.weapon, player.paces);
+    };
+
+    var _drawSky = function(direction, sky, ambient) {
+        var width = sky.width * (_height / sky.height) * 2;
+        var left = (direction / CIRCLE) * -width;
+
+        _ctx.save();
+        _ctx.drawImage(sky.image, left, 0, width, _height);
+        if (left < width - _width) {
+          _ctx.drawImage(sky.image, left + width, 0, width, _height);
+        }
+
+        if (ambient > 0) {
+          _ctx.fillStyle = '#ffffff';
+          _ctx.globalAlpha = ambient * 0.1;
+          _ctx.fillRect(0, _height * 0.5, _width, _height * 0.5);
+        }
+        _ctx.restore();
+    };
+
+    var _drawColumns = function(player, map) {
+        _ctx.save();
+        for (var column = 0; column < _resolution; column++) {
+          var x = column / _resolution - 0.5;
+          var angle = Math.atan2(x, _focalLength);
+          var ray = map.cast(player, player.direction + angle, _range);
+          _drawColumn(column, ray, angle, map);
+        }
+        _ctx.restore();
+    };
+
+    var _drawWeapon = function(weapon, paces) {
+        var bobX = Math.cos(paces * 2) * _scale * 6;
+        var bobY = Math.sin(paces * 4) * _scale * 6;
+        var left = _width * 0.66 + bobX;
+        var top = _height * 0.6 + bobY;
+        _ctx.drawImage(weapon.image, left, top, weapon.width * _scale,
+            weapon.height * _scale);
+    };
+
+    var _drawColumn = function(column, ray, angle, map) {
+        var ctx = _ctx;
+        var texture = map.wallTexture;
+        var left = Math.floor(column * _spacing);
+        var width = Math.ceil(_spacing);
+        var hit = -1;
+
+        while (++hit < ray.length && ray[hit].height <= 0);
+
+        for (var s = ray.length - 1; s >= 0; s--) {
+            var step = ray[s];
+            var rainDrops = Math.pow(Math.random(), 3) * s;
+            var rain = (rainDrops > 0) && _project(0.1, angle, step.distance);
+
+            if (s === hit) {
+                var textureX = Math.floor(texture.width * step.offset);
+                var wall = _project(step.height, angle, step.distance);
+
+                ctx.globalAlpha = 1;
+                ctx.drawImage(texture.image, textureX, 0, 1, texture.height,
+                    left, wall.top, width, wall.height);
+            
+                ctx.fillStyle = '#000000';
+                ctx.globalAlpha = Math.max((step.distance + step.shading) /
+                    _lightRange - map.light, 0);
+                ctx.fillRect(left, wall.top, width, wall.height);
+            }
+          
+            ctx.fillStyle = '#ffffff';
+            ctx.globalAlpha = 0.15;
+            while (--rainDrops > 0)
+                ctx.fillRect(left, Math.random() * rain.top, 1, rain.height);
+        }
+    };
+
+    var _project = function(height, angle, distance) {
+        var z = distance * Math.cos(angle);
+        var wallHeight = _height * height / z;
+        var bottom = _height / 2 * (1 + 1 / z);
+        return {
+            top: bottom - wallHeight,
+            height: wallHeight
+        };
+    };
+
+    return {
+        init: _init,
+        render: _render,
+    };
+})();
+
+var map = (function(skybox, wallTexture) {
     var _size = 0;
     var _wallGrid = null;
     var _skybox = null;
     var _wallTexture = null;
     var _light = 0;
 
-    var _init = function(size) {
+    var _init = function(size, skybox, wallTexture) {
         _size = size;
         _wallGrid = new Uint8Array(size * size);
-        // _skybox = new Bitmap('assets/deathvalley_panorama.jpg', 2000, 750);
-        // _wallTexture = new Bitmap('assets/wall_texture.jpg', 1024, 1024);
+        _skybox = skybox;
+        _wallTexture = wallTexture;
     };
 
     var _get = function(x, y) {
@@ -88,8 +206,62 @@ var map = (function() {
         randomize: _randomize,
         cast: _cast,
         update: _update,
+        skybox: _skybox,
+        wallTexture: _wallTexture,
+        light: _light,
     }
 })();
+
+var player = (function() {
+    var CIRCLE = Math.PI * 2;
+    
+    var _x = 0;
+    var _y = 0;
+    var _direction = 0;
+    var _weapon = null;
+    _paces = 0;
+
+    var _init = function(x, y, direction, weapon) {
+        _x = x;
+        _y = y;
+        _direction = direction;
+        _weapon = weapon;
+    };
+
+    var _rotate = function(angle) {
+        _direction = (_direction + angle + CIRCLE) % (CIRCLE);
+    };
+
+    var _walk = function(distance, map) {
+        var dx = Math.cos(_direction) * distance;
+        var dy = Math.sin(_direction) * distance;
+        if (map.get(_x + dx, _y) <= 0)
+            _x += dx;
+        if (map.get(_x, _y + dy) <= 0)
+            _y += dy;
+        _paces += distance;
+    };
+
+    var _update = function(controls, map, seconds) {
+        if (controls.left)
+            _rotate(-Math.PI * seconds);
+        if (controls.right)
+            _rotate(Math.PI * seconds);
+        if (controls.forward)
+            _walk(3 * seconds, map);
+        if (controls.backward)
+            _walk(-3 * seconds, map);
+    };
+
+    return {
+        init: _init,
+        direction: _direction,
+        weapon: _weapon,
+        paces: _paces,
+    }
+})();
+
+var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
 var g = ga(
     512, 512, setup
@@ -97,12 +269,23 @@ var g = ga(
 
 g.start();
 
+var ticks = 0;
 function setup() {
     g.canvas.style.border = "1px solid black";
     g.backgroundColor = "white";
-    map.init(32);
+
+    player.init(15.3, -1.2, Math.PI * 0.3, g.rectangle(319,320, "white"));
+    map.init(32, g.rectangle(2000, 750, "grey"),
+        g.rectangle(1024, 1024, "brown"));
+    camera.init(g.canvas, MOBILE ? 160 : 320, 0.8);
+    map.randomize();
+
     g.state = play;
 };
 
 function play() {
+    ticks++;
+    map.update(ticks / 60);
+    player.update(controls.states, map, ticks / 60);
+    camera.render(player, map);
 };
