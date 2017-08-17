@@ -1,3 +1,9 @@
+function Bitmap(src, width, height) {
+    this.image = new Image();
+    this.image.src = src;
+    this.width = width;
+    this.height = height;
+}
 
 var camera = (function() {
     var _ctx = null;
@@ -23,9 +29,9 @@ var camera = (function() {
     };
 
     var _render = function(player, map) {
-        _drawSky(player.direction, map.skybox, map.light);
-        _drawColumns(player, map);
-        _drawWeapon(player.weapon, player.paces);
+        // _drawSky(player.direction, map.skybox, map.light);
+        // _drawColumns(player, map);
+        // _drawWeapon(player.weapon, player.paces);
     };
 
     var _drawSky = function(direction, sky, ambient) {
@@ -117,7 +123,80 @@ var camera = (function() {
     };
 })();
 
-var map = (function(skybox, wallTexture) {
+var controls = (function(){
+    var _codes  = { 37: 'left', 39: 'right', 38: 'forward', 40: 'backward' };
+    var _states = { 'left': false, 'right': false, 'forward': false,
+        'backward': false };
+
+    var _init = function() {
+        document.addEventListener('keydown', _onKey.bind(this, true), false);
+        document.addEventListener('keyup', _onKey.bind(this, false), false);
+        document.addEventListener('touchstart', _onTouch.bind(this), false);
+        document.addEventListener('touchmove', _onTouch.bind(this), false);
+        document.addEventListener('touchend', _onTouchEnd.bind(this), false);
+    }
+
+    var _onTouch = function(e) {
+        var t = e.touches[0];
+        this.onTouchEnd(e);
+        if (t.pageY < window.innerHeight * 0.5)
+            _onKey(true, { keyCode: 38 });
+        else if (t.pageX < window.innerWidth * 0.5)
+            _onKey(true, { keyCode: 37 });
+        else if (t.pageY > window.innerWidth * 0.5)
+            _onKey(true, { keyCode: 39 });
+    };
+
+    var _onTouchEnd = function(e) {
+        _states = { 'left': false, 'right': false, 'forward': false,
+            'backward': false };
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    var _onKey = function(val, e) {
+        var state = _codes[e.keyCode];
+        if (typeof state === 'undefined')
+            return;
+        _states[state] = val;
+        e.preventDefault && e.preventDefault();
+        e.stopPropagation && e.stopPropagation();
+    };
+
+    return {
+        init: _init,
+        states: _states,
+    };
+})();
+
+var gameloop = (function(){
+    var _callback = null;
+    var _lastTime = 0;
+
+    var _init = function() {
+        _frame.bind(this);
+    };
+
+    var _start = function(callback) {
+        _callback = callback;
+        requestAnimationFrame(_frame);
+    };
+
+    var _frame = function(time) {
+        var seconds = (time - _lastTime) / 1000;
+        _lastTime = time;
+        if (seconds < 0.2)
+            _callback(seconds);
+        requestAnimationFrame(_frame);
+    };
+
+    return {
+        init: _init,
+        start: _start,
+    };
+})();
+
+var map = (function() {
     var _size = 0;
     var _wallGrid = null;
     var _skybox = null;
@@ -258,34 +337,26 @@ var player = (function() {
         direction: _direction,
         weapon: _weapon,
         paces: _paces,
+        update: _update,
     }
 })();
 
+
 var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
 
-var g = ga(
-    512, 512, setup
-);
+var display = document.getElementById('display');
+player.init(15.3, -1.2, Math.PI * 0.3,
+    new Bitmap("knife_hand.png", 319, 320));
+map.init(32, new Bitmap("deathvalley_panorama.jpg", 2000, 750),
+    new Bitmap("wall_texture.jpg", 1024, 1024));
+controls.init();
+camera.init(display, MOBILE ? 160 : 320, 0.8);
+gameloop.init();
 
-g.start();
+map.randomize();
 
-var ticks = 0;
-function setup() {
-    g.canvas.style.border = "1px solid black";
-    g.backgroundColor = "white";
-
-    player.init(15.3, -1.2, Math.PI * 0.3, g.rectangle(319,320, "white"));
-    map.init(32, g.rectangle(2000, 750, "grey"),
-        g.rectangle(1024, 1024, "brown"));
-    camera.init(g.canvas, MOBILE ? 160 : 320, 0.8);
-    map.randomize();
-
-    g.state = play;
-};
-
-function play() {
-    ticks++;
-    map.update(ticks / 60);
-    player.update(controls.states, map, ticks / 60);
+gameloop.start(function(seconds) {
+    map.update(seconds);
+    player.update(controls.states, map, seconds);
     camera.render(player, map);
-};
+});
