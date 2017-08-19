@@ -29,9 +29,9 @@ var camera = (function() {
     };
 
     var _render = function(player, map) {
-        // _drawSky(player.direction, map.skybox, map.light);
-        // _drawColumns(player, map);
-        // _drawWeapon(player.weapon, player.paces);
+        _drawSky(player.direction(), map.skybox(), map.light());
+        _drawColumns(player, map);
+        _drawWeapon(player.weapon(), player.paces);
     };
 
     var _drawSky = function(direction, sky, ambient) {
@@ -41,13 +41,13 @@ var camera = (function() {
         _ctx.save();
         _ctx.drawImage(sky.image, left, 0, width, _height);
         if (left < width - _width) {
-          _ctx.drawImage(sky.image, left + width, 0, width, _height);
+            _ctx.drawImage(sky.image, left + width, 0, width, _height);
         }
 
         if (ambient > 0) {
-          _ctx.fillStyle = '#ffffff';
-          _ctx.globalAlpha = ambient * 0.1;
-          _ctx.fillRect(0, _height * 0.5, _width, _height * 0.5);
+            _ctx.fillStyle = '#ffffff';
+            _ctx.globalAlpha = ambient * 0.1;
+            _ctx.fillRect(0, _height * 0.5, _width, _height * 0.5);
         }
         _ctx.restore();
     };
@@ -55,10 +55,10 @@ var camera = (function() {
     var _drawColumns = function(player, map) {
         _ctx.save();
         for (var column = 0; column < _resolution; column++) {
-          var x = column / _resolution - 0.5;
-          var angle = Math.atan2(x, _focalLength);
-          var ray = map.cast(player, player.direction + angle, _range);
-          _drawColumn(column, ray, angle, map);
+            var x = column / _resolution - 0.5;
+            var angle = Math.atan2(x, _focalLength);
+            var ray = map.cast(player, player.direction() + angle, _range);
+            _drawColumn(column, ray, angle, map);
         }
         _ctx.restore();
     };
@@ -74,7 +74,7 @@ var camera = (function() {
 
     var _drawColumn = function(column, ray, angle, map) {
         var ctx = _ctx;
-        var texture = map.wallTexture;
+        var texture = map.wallTexture();
         var left = Math.floor(column * _spacing);
         var width = Math.ceil(_spacing);
         var hit = -1;
@@ -210,6 +210,18 @@ var map = (function() {
         _wallTexture = wallTexture;
     };
 
+    var _getLight = function() {
+        return _light;
+    };
+
+    var _getSkybox = function() {
+        return _skybox;
+    };
+
+    var _getWallTexture = function() {
+        return _wallTexture;
+    };
+
     var _get = function(x, y) {
         x = Math.floor(x);
         y = Math.floor(y);
@@ -224,8 +236,9 @@ var map = (function() {
         }
     };
 
+
     var _cast = function(point, angle, range) {
-        var self = this;
+        var self = this;        
         var sin = Math.sin(angle);
         var cos = Math.cos(angle);
         var noWall = {
@@ -244,7 +257,7 @@ var map = (function() {
             if (nextStep.distance > range)
                 return [origin];
             return [origin].concat(ray(nextStep));
-        }
+        };
 
         function step(rise, run, x, y, inverted) {
             if (run === 0)
@@ -256,12 +269,12 @@ var map = (function() {
                 y: inverted ? x + dx : y + dy,
                 length2: dx * dx + dy * dy
             };
-        }
+        };
 
         function inspect(step, shiftX, shiftY, distance, offset) {
             var dx = cos < 0 ? shiftX : 0;
             var dy = sin < 0 ? shiftY : 0;
-            step.height = self.get(step.x - dx, step.y - dy);
+            step.height = _get(step.x - dx, step.y - dy);
             step.distance = distance + Math.sqrt(step.length2);
             if (shiftX)
                 step.shading = cos < 0 ? 2 : 0;
@@ -269,7 +282,7 @@ var map = (function() {
                 step.shading = sin < 0 ? 2 : 1;
             step.offset = offset - Math.floor(offset);
             return step;
-        }
+        };
     };
 
     var _update = function(seconds) {
@@ -285,15 +298,13 @@ var map = (function() {
         randomize: _randomize,
         cast: _cast,
         update: _update,
-        skybox: _skybox,
-        wallTexture: _wallTexture,
-        light: _light,
+        skybox: _getSkybox,
+        wallTexture: _getWallTexture,
+        light: _getLight,
     }
 })();
 
 var player = (function() {
-    var CIRCLE = Math.PI * 2;
-    
     var _x = 0;
     var _y = 0;
     var _direction = 0;
@@ -306,6 +317,14 @@ var player = (function() {
         _direction = direction;
         _weapon = weapon;
     };
+
+    var _getDirection = function() {
+        return _direction;
+    };
+
+    var _getWeapon = function() {
+        return _weapon;
+    }
 
     var _rotate = function(angle) {
         _direction = (_direction + angle + CIRCLE) % (CIRCLE);
@@ -334,8 +353,8 @@ var player = (function() {
 
     return {
         init: _init,
-        direction: _direction,
-        weapon: _weapon,
+        direction: _getDirection,
+        weapon: _getWeapon,
         paces: _paces,
         update: _update,
     }
@@ -343,12 +362,14 @@ var player = (function() {
 
 
 var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+var CIRCLE = Math.PI * 2;
 
+var weapon = new Bitmap("./knife_hand.png", 319, 320);
+var skybox = new Bitmap("./deathvalley_panorama.jpg", 2000, 750);
+var wallTexture = new Bitmap("./wall_texture.jpg", 1024, 1024);
 var display = document.getElementById('display');
-player.init(15.3, -1.2, Math.PI * 0.3,
-    new Bitmap("knife_hand.png", 319, 320));
-map.init(32, new Bitmap("deathvalley_panorama.jpg", 2000, 750),
-    new Bitmap("wall_texture.jpg", 1024, 1024));
+player.init(15.3, -1.2, Math.PI * 0.3, weapon);
+map.init(32, skybox, wallTexture);
 controls.init();
 camera.init(display, MOBILE ? 160 : 320, 0.8);
 gameloop.init();
