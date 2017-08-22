@@ -1,3 +1,4 @@
+(function(){
 var CIRCLE = Math.PI * 2;
 
 var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)
@@ -79,11 +80,11 @@ Player.prototype.update = function(controls, map, seconds) {
         this.walk(-3 * seconds, map);
 };
 
-function Map(size) {
+function Map(size, skybox, wallTexture) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
-    this.skybox = new Bitmap('./deathvalley_panorama.jpg', 2000, 750);
-    this.wallTexture = new Bitmap('./wall_texture.jpg', 1024, 1024);
+    this.skybox = skybox;
+    this.wallTexture = wallTexture;
     this.light = 0;
 };
 
@@ -272,17 +273,25 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
-var display = document.getElementById('display');
+var g = ga(512, 512, setup);
+g.start();
+
 var player = new Player(15.3, -1.2, Math.PI * 0.3);
-var map = new Map(32);
+var map = new Map(32, g.rectangle(2000, 750, "grey"), g.rectangle(1024, 1024, 
+    "red"));
 var controls = new Controls();
-var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
-var loop = new GameLoop();
+var camera = new Camera(g.canvas, MOBILE ? 160 : 320, 0.8);
+var ticks = 0;
 
-map.randomize();
+function setup() {
+//    map.randomize();
+    g.state = play;
+}
 
-loop.start(function frame(seconds) {
-    map.update(seconds);
-    player.update(controls.states, map, seconds);
+function play() {
+    map.update(ticks / 1000);
+    player.update(controls.states, map, ticks / 1000);
     camera.render(player, map);
-});
+    ticks++;
+}
+})();
