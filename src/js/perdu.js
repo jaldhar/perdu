@@ -40,18 +40,11 @@ Controls.prototype.onKey = function(val, e) {
     e.stopPropagation && e.stopPropagation();
 };
 
-function Bitmap(src, width, height) {
-    this.image = new Image();
-    this.image.src = src;
-    this.width = width;
-    this.height = height;
-}
-
 function Player(x, y, direction) {
     this.x = x;
     this.y = y;
     this.direction = direction;
-    this.weapon = new Bitmap('./knife_hand.png', 319, 320);
+    this.weapon = g.image("knife_hand.png");
     this.paces = 0;
 }
 
@@ -80,11 +73,11 @@ Player.prototype.update = function(controls, map, seconds) {
         this.walk(-3 * seconds, map);
 };
 
-function Map(size, skybox, wallTexture) {
+function Map(size) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
-    this.skybox = skybox;
-    this.wallTexture = wallTexture;
+    this.skybox = g.image("deathvalley_panorama.jpg");
+    this.wallTexture = g.image("wall_texture.jpg");
     this.light = 0;
 };
 
@@ -178,9 +171,10 @@ Camera.prototype.drawSky = function(direction, sky, ambient) {
     var left = (direction / CIRCLE) * -width;
 
     this.ctx.save();
-    this.ctx.drawImage(sky.image, left, 0, width, this.height);
+    //console.log(sky.source);
+    this.ctx.drawImage(sky.source, left, 0, width, this.height);
     if (left < width - this.width) {
-        this.ctx.drawImage(sky.image, left + width, 0, width, this.height);
+        this.ctx.drawImage(sky.source, left + width, 0, width, this.height);
     }
     if (ambient > 0) {
         this.ctx.fillStyle = '#ffffff';
@@ -206,7 +200,7 @@ Camera.prototype.drawWeapon = function(weapon, paces) {
     var bobY = Math.sin(paces * 4) * this.scale * 6;
     var left = this.width * 0.66 + bobX;
     var top = this.height * 0.6 + bobY;
-    this.ctx.drawImage(weapon.image, left, top, weapon.width * this.scale,
+    this.ctx.drawImage(weapon.source, left, top, weapon.width * this.scale,
         weapon.height * this.scale);
 };
 
@@ -229,8 +223,8 @@ Camera.prototype.drawColumn = function(column, ray, angle, map) {
             var wall = this.project(step.height, angle, step.distance);
 
             ctx.globalAlpha = 1;
-            ctx.drawImage(texture.image, textureX, 0, 1, texture.height, left,
-                wall.top, width, wall.height);
+            ctx.drawImage(texture.source, textureX, 0, 1, texture.height,
+                left, wall.top, width, wall.height);
 
             ctx.fillStyle = '#000000';
             ctx.globalAlpha = Math.max((step.distance + step.shading) /
@@ -273,18 +267,24 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
-var g = ga(512, 512, setup);
+var g = ga(2000, 750, setup,
+[
+    "knife_hand.png",
+    "deathvalley_panorama.jpg",
+    "wall_texture.jpg",
+]);
 g.start();
 
-var player = new Player(15.3, -1.2, Math.PI * 0.3);
-var map = new Map(32, g.rectangle(2000, 750, "grey"), g.rectangle(1024, 1024, 
-    "red"));
-var controls = new Controls();
-var camera = new Camera(g.canvas, MOBILE ? 160 : 320, 0.8);
-var ticks = 0;
+var player, map, controls, camera, ticks;
 
 function setup() {
-//    map.randomize();
+    player = new Player(15.3, -1.2, Math.PI * 0.3);
+    map = new Map(32);
+    controls = new Controls();
+    camera = new Camera(g.canvas, MOBILE ? 160 : 320, 0.8);
+    ticks = 0;
+
+    map.randomize();
     g.state = play;
 }
 
