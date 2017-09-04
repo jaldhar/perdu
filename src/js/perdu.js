@@ -40,11 +40,11 @@ Controls.prototype.onKey = function(val, e) {
     e.stopPropagation && e.stopPropagation();
 };
 
-function Player(x, y, direction) {
+function Player(x, y, direction, weapon) {
     this.x = x;
     this.y = y;
     this.direction = direction;
-    this.weapon = g.image("knife_hand.png");
+    this.weapon = rat.image(weapon);
     this.paces = 0;
 }
 
@@ -73,11 +73,11 @@ Player.prototype.update = function(controls, map, seconds) {
         this.walk(-3 * seconds, map);
 };
 
-function Map(size) {
+function Map(size, skybox, wallTexture) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
-    this.skybox = g.image("deathvalley_panorama.jpg");
-    this.wallTexture = g.image("wall_texture.jpg");
+    this.skybox = rat.image(skybox);
+    this.wallTexture = rat.image(wallTexture);
     this.light = 0;
 };
 
@@ -267,26 +267,23 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
-var g = ga(2000, 750, setup,
-[
-    "knife_hand.png",
-    "deathvalley_panorama.jpg",
-    "wall_texture.jpg",
-]);
-g.start();
+var weapon = new Image;
+weapon.src = "knife_hand.png";
+var skybox = new Image;
+skybox.src = "deathvalley_panorama.jpg";
+var wallTexture = new Image;
+wallTexture.src = "wall_texture.jpg";
 
-var player, map, controls, camera, ticks;
+var player = new Player(15.3, -1.2, Math.PI * 0.3, weapon);
+var map = new Map(32, skybox, wallTexture);
+var controls = new Controls();
+var element = getElementById('perdu');
+var ctx = element.getContext('2d');
+var rat = new Rat(ctx);
+var camera = new Camera(ctx, MOBILE ? 160 : 320, 0.8);
+var ticks = 0;
 
-function setup() {
-    player = new Player(15.3, -1.2, Math.PI * 0.3);
-    map = new Map(32);
-    controls = new Controls();
-    camera = new Camera(g.canvas, MOBILE ? 160 : 320, 0.8);
-    ticks = 0;
-
-    map.randomize();
-    g.state = play;
-}
+map.randomize();
 
 function play() {
     map.update(ticks / 1000);
