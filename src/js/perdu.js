@@ -40,11 +40,18 @@ Controls.prototype.onKey = function(val, e) {
     e.stopPropagation && e.stopPropagation();
 };
 
+function Bitmap(src, width, height) {
+    this.image = new Image();
+    this.image.src = src;
+    this.width = width;
+    this.height = height;
+}
+
 function Player(x, y, direction, weapon) {
     this.x = x;
     this.y = y;
     this.direction = direction;
-    this.weapon = rat.image(weapon);
+    this.weapon = weapon;
     this.paces = 0;
 }
 
@@ -76,8 +83,8 @@ Player.prototype.update = function(controls, map, seconds) {
 function Map(size, skybox, wallTexture) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
-    this.skybox = rat.image(skybox);
-    this.wallTexture = rat.image(wallTexture);
+    this.skybox = skybox;
+    this.wallTexture = wallTexture;
     this.light = 0;
 };
 
@@ -172,9 +179,9 @@ Camera.prototype.drawSky = function(direction, sky, ambient) {
 
     this.ctx.save();
     //console.log(sky.source);
-    this.ctx.drawImage(sky.source, left, 0, width, this.height);
+    this.ctx.drawImage(sky.image, left, 0, width, this.height);
     if (left < width - this.width) {
-        this.ctx.drawImage(sky.source, left + width, 0, width, this.height);
+        this.ctx.drawImage(sky.image, left + width, 0, width, this.height);
     }
     if (ambient > 0) {
         this.ctx.fillStyle = '#ffffff';
@@ -200,7 +207,7 @@ Camera.prototype.drawWeapon = function(weapon, paces) {
     var bobY = Math.sin(paces * 4) * this.scale * 6;
     var left = this.width * 0.66 + bobX;
     var top = this.height * 0.6 + bobY;
-    this.ctx.drawImage(weapon.source, left, top, weapon.width * this.scale,
+    this.ctx.drawImage(weapon.image, left, top, weapon.width * this.scale,
         weapon.height * this.scale);
 };
 
@@ -223,7 +230,7 @@ Camera.prototype.drawColumn = function(column, ray, angle, map) {
             var wall = this.project(step.height, angle, step.distance);
 
             ctx.globalAlpha = 1;
-            ctx.drawImage(texture.source, textureX, 0, 1, texture.height,
+            ctx.drawImage(texture.image, textureX, 0, 1, texture.height,
                 left, wall.top, width, wall.height);
 
             ctx.fillStyle = '#000000';
@@ -267,28 +274,19 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
-var weapon = new Image;
-weapon.src = "knife_hand.png";
-var skybox = new Image;
-skybox.src = "deathvalley_panorama.jpg";
-var wallTexture = new Image;
-wallTexture.src = "wall_texture.jpg";
-
-var player = new Player(15.3, -1.2, Math.PI * 0.3, weapon);
-var map = new Map(32, skybox, wallTexture);
+var display = document.getElementById('display');
+var player = new Player(15.3, -1.2, Math.PI * 0.3,
+new Bitmap('./knife_hand.png', 319, 320));
+var map = new Map(32, new Bitmap('./deathvalley_panorama.jpg', 2000, 750),
+new Bitmap('./wall_texture.jpg', 1024, 1024));
 var controls = new Controls();
-var element = getElementById('perdu');
-var ctx = element.getContext('2d');
-var rat = new Rat(ctx);
-var camera = new Camera(ctx, MOBILE ? 160 : 320, 0.8);
-var ticks = 0;
-
+var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
+var loop = new GameLoop();
 map.randomize();
 
-function play() {
-    map.update(ticks / 1000);
-    player.update(controls.states, map, ticks / 1000);
+loop.start(function frame(seconds) {
+    map.update(seconds);
+    player.update(controls.states, map, seconds);
     camera.render(player, map);
-    ticks++;
-}
+});
 })();
