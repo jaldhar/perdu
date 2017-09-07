@@ -176,7 +176,6 @@ Camera.prototype.drawSky = function(direction, sky, ambient) {
     var left = (direction / CIRCLE) * -width;
 
     this.ctx.save();
-    //console.log(sky.source);
     this.ctx.drawImage(sky.image, left, 0, width, this.height);
     if (left < width - this.width) {
         this.ctx.drawImage(sky.image, left + width, 0, width, this.height);
@@ -237,6 +236,7 @@ Camera.prototype.drawColumn = function(column, ray, angle, map) {
     }
 };
 
+
 Camera.prototype.project = function(height, angle, distance) {
     var z = distance * Math.cos(angle);
     var wallHeight = this.height * height / z;
@@ -265,11 +265,12 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
+var wall='<svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" id="svg2" version="1.1" width="1024" height="1024"> <defs id="defs12" /> <path d="m 0,2.1694915 1024,0 0,1024.0000085 -1024,0 z" id="path4" style="fill:#c9c9c9" /> <g class="" transform="matrix(2,0,0,2,0,2.1694915)" id="g6"> <path d="M 494,18.02 393,18.123 393,119 494,119 Z M 375,18.14 137,18.387 137,119 375,119 Z M 119,18.406 18,18.51 18,119 119,119 Z M 18,137 l 0,110 229,0 0,-110 z m 247,0 0,110 229,0 0,-110 z m -247,128 0,110 101,0 0,-110 z m 119,0 0,110 238,0 0,-110 z m 256,0 0,110 101,0 0,-110 z M 18,393 18,493.98 247,493.744 247,393 Z m 247,0 0,100.727 229,-0.237 0,-100.49 z" id="path8" style="fill:#d0021b" /> </g> </svg>';
 var display = document.getElementById('display');
 var player = new Player(15.3, -1.2, Math.PI * 0.3,
-new Bitmap('./hand.gif', 319, 320));
+    new Bitmap('./hand.gif', 319, 320));
 var map = new Map(32, new Bitmap('./background.gif', 2000, 750),
-new Bitmap('./wall.gif', 1024, 1024));
+    new Bitmap('data:image/svg+xml,' + encodeURIComponent(wall), 1024, 1024));
 var controls = new Controls();
 var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
 var loop = new GameLoop();
