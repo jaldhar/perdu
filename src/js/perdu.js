@@ -40,6 +40,18 @@ Controls.prototype.onKey = function(val, e) {
     e.stopPropagation && e.stopPropagation();
 };
 
+function canvasToImage(drawFunc, width, height) {
+    var canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    var ctx = canvas.getContext("2d");
+    drawFunc(ctx);
+    this.image = new Image();
+    this.image.src = canvas.toDataURL("image/png");
+    this.width = width;
+    this.height = height;
+}
+
 function Bitmap(src, width, height) {
     this.image = new Image();
     this.image.src = src;
@@ -265,12 +277,101 @@ GameLoop.prototype.frame = function(time) {
   requestAnimationFrame(this.frame);
 };
 
-var wall='<svg xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" id="svg2" version="1.1" width="1024" height="1024"> <defs id="defs12" /> <path d="m 0,2.1694915 1024,0 0,1024.0000085 -1024,0 z" id="path4" style="fill:#c9c9c9" /> <g class="" transform="matrix(2,0,0,2,0,2.1694915)" id="g6"> <path d="M 494,18.02 393,18.123 393,119 494,119 Z M 375,18.14 137,18.387 137,119 375,119 Z M 119,18.406 18,18.51 18,119 119,119 Z M 18,137 l 0,110 229,0 0,-110 z m 247,0 0,110 229,0 0,-110 z m -247,128 0,110 101,0 0,-110 z m 119,0 0,110 238,0 0,-110 z m 256,0 0,110 101,0 0,-110 z M 18,393 18,493.98 247,493.744 247,393 Z m 247,0 0,100.727 229,-0.237 0,-100.49 z" id="path8" style="fill:#d0021b" /> </g> </svg>';
+var drawWall = function(ctx) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(1024,0);
+    ctx.lineTo(1024,1024);
+    ctx.lineTo(0,1024);
+    ctx.closePath();
+    ctx.clip();
+    ctx.translate(0,0);
+    ctx.translate(0,0);
+    ctx.scale(1,1);
+    ctx.translate(0,0);
+    ctx.strokeStyle = 'rgba(0,0,0,0)';
+    ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter';
+    ctx.miterLimit = 4;
+    ctx.save();
+    ctx.fillStyle = "#c9c9c9";
+    ctx.beginPath();
+    ctx.moveTo(0,2.1694915);
+    ctx.lineTo(1024,2.1694915);
+    ctx.lineTo(1024,1026.1695);
+    ctx.lineTo(0,1026.1695);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    ctx.save();
+    ctx.transform(2,0,0,2,0,2.1694915);
+    ctx.save();
+    ctx.fillStyle = "#d0021b";
+    ctx.beginPath();
+    ctx.moveTo(494,18.02);
+    ctx.lineTo(393,18.123);
+    ctx.lineTo(393,119);
+    ctx.lineTo(494,119);
+    ctx.closePath();
+    ctx.moveTo(375,18.14);
+    ctx.lineTo(137,18.387);
+    ctx.lineTo(137,119);
+    ctx.lineTo(375,119);
+    ctx.closePath();
+    ctx.moveTo(119,18.406);
+    ctx.lineTo(18,18.51);
+    ctx.lineTo(18,119);
+    ctx.lineTo(119,119);
+    ctx.closePath();
+    ctx.moveTo(18,137);
+    ctx.lineTo(18,247);
+    ctx.lineTo(247,247);
+    ctx.lineTo(247,137);
+    ctx.closePath();
+    ctx.moveTo(494,137);
+    ctx.lineTo(494,247);
+    ctx.lineTo(723,247);
+    ctx.lineTo(723,137);
+    ctx.closePath();
+    ctx.moveTo(476,265);
+    ctx.lineTo(476,375);
+    ctx.lineTo(577,375);
+    ctx.lineTo(577,265);
+    ctx.closePath();
+    ctx.moveTo(696,265);
+    ctx.lineTo(696,375);
+    ctx.lineTo(934,375);
+    ctx.lineTo(934,265);
+    ctx.closePath();
+    ctx.moveTo(1190,265);
+    ctx.lineTo(1190,375);
+    ctx.lineTo(1291,375);
+    ctx.lineTo(1291,265);
+    ctx.closePath();
+    ctx.moveTo(18,393);
+    ctx.lineTo(18,493.98);
+    ctx.lineTo(247,493.744);
+    ctx.lineTo(247,393);
+    ctx.closePath();
+    ctx.moveTo(494,393);
+    ctx.lineTo(494,493.727);
+    ctx.lineTo(723,493.48999999999995);
+    ctx.lineTo(723,392.99999999999994);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    ctx.restore();
+    ctx.restore();
+};
+
 var display = document.getElementById('display');
 var player = new Player(15.3, -1.2, Math.PI * 0.3,
     new Bitmap('./hand.gif', 319, 320));
 var map = new Map(32, new Bitmap('./background.gif', 2000, 750),
-    new Bitmap('data:image/svg+xml,' + encodeURIComponent(wall), 1024, 1024));
+    new canvasToImage(drawWall, 1024, 1024));
 var controls = new Controls();
 var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
 var loop = new GameLoop();
