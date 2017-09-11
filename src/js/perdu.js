@@ -52,18 +52,10 @@ function canvasToImage(drawFunc, width, height) {
     this.height = height;
 }
 
-function Bitmap(src, width, height) {
-    this.image = new Image();
-    this.image.src = src;
-    this.width = width;
-    this.height = height;
-}
-
-function Player(x, y, direction, weapon) {
+function Player(x, y, direction) {
     this.x = x;
     this.y = y;
     this.direction = direction;
-    this.weapon = weapon;
     this.paces = 0;
 }
 
@@ -180,7 +172,6 @@ function Camera(canvas, resolution, focalLength) {
 Camera.prototype.render = function(player, map) {
     this.drawSky(player.direction, map.skybox, map.light);
     this.drawColumns(player, map);
-    this.drawWeapon(player.weapon, player.paces);
 };
 
 Camera.prototype.drawSky = function(direction, sky, ambient) {
@@ -209,15 +200,6 @@ Camera.prototype.drawColumns = function(player, map) {
         this.drawColumn(column, ray, angle, map);
     }
     this.ctx.restore();
-};
-
-Camera.prototype.drawWeapon = function(weapon, paces) {
-    var bobX = Math.cos(paces * 2) * this.scale * 6;
-    var bobY = Math.sin(paces * 4) * this.scale * 6;
-    var left = this.width * 0.66 + bobX;
-    var top = this.height * 0.6 + bobY;
-    this.ctx.drawImage(weapon.image, left, top, weapon.width * this.scale,
-        weapon.height * this.scale);
 };
 
 Camera.prototype.drawColumn = function(column, ray, angle, map) {
@@ -1257,8 +1239,7 @@ var drawWall = function(ctx) {
 };
 
 var display = document.getElementById('display');
-var player = new Player(15.3, -1.2, Math.PI * 0.3,
-    new Bitmap('./hand.gif', 319, 320));
+var player = new Player(15.3, -1.2, Math.PI * 0.3);
 var map = new Map(32, new canvasToImage(drawBackground, 1200, 750),
     new canvasToImage(drawWall, 1024, 1024));
 var controls = new Controls();
