@@ -52,7 +52,13 @@ function canvasToImage(drawFunc, width, height) {
     this.height = height;
 }
 
-function Player(x, y, direction) {
+function Player(map, direction) {
+    var x, y;
+    do {
+        x = Math.floor(Math.random() * (map.size - 2)) + 1;
+        y = Math.floor(Math.random() * (map.size - 2)) + 1;
+    } while (map.wallGrid[x * map.size + y] !== 0);
+
     this.x = x;
     this.y = y;
     this.direction = direction;
@@ -90,6 +96,25 @@ function Map(size, skybox, wallTexture) {
     this.skybox = skybox;
     this.wallTexture = wallTexture;
     this.light = 0;
+
+    for (var i = 0; i < this.size; i++) {
+        for (var j = 0; j < this.size; j++) {
+            if (i === 0 || i === this.size - 1 || j === 0 ||
+            j === this.size - 1) {
+                this.wallGrid[i * this.size + j] = 1;
+            } else {
+                this.wallGrid[i * this.size + j] = 0;
+            }
+        }
+    }
+    for (var i = 0; i < 20; i++) {
+        var x, y;
+        do {
+            x = Math.floor(Math.random() * (this.size - 2)) + 1;
+            y = Math.floor(Math.random() * (this.size - 2)) + 1;
+        } while (this.wallGrid[x * this.size + y] !== 0);
+        this.wallGrid[x * this.size + y] = 1;
+    }
 };
 
 Map.prototype.get = function(x, y) {
@@ -98,12 +123,6 @@ Map.prototype.get = function(x, y) {
     if (x < 0 || x > this.size - 1 || y < 0 || y > this.size - 1)
         return -1;
     return this.wallGrid[y * this.size + x];
-};
-
-Map.prototype.randomize = function() {
-    for (var i = 0; i < this.size * this.size; i++) {
-        this.wallGrid[i] = Math.random() < 0.3 ? 1 : 0;
-    }
 };
 
 Map.prototype.cast = function(point, angle, range) {
@@ -738,13 +757,12 @@ var drawWall = function(ctx) {
 };
 
 var display = document.getElementById('display');
-var player = new Player(15.3, -1.2, Math.PI * 0.3);
-var map = new Map(32, new canvasToImage(drawBackground, 1200, 750),
+var map = new Map(12, new canvasToImage(drawBackground, 1200, 750),
     new canvasToImage(drawWall, 1024, 1024));
 var controls = new Controls();
 var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
 var loop = new GameLoop();
-map.randomize();
+var player = new Player(map, Math.PI * 0.3);
 
 loop.start(function frame(seconds) {
     map.update(seconds);
