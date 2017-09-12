@@ -53,14 +53,9 @@ function canvasToImage(drawFunc, width, height) {
 }
 
 function Player(map, direction) {
-    var x, y;
-    do {
-        x = Math.floor(Math.random() * (map.size - 2)) + 1;
-        y = Math.floor(Math.random() * (map.size - 2)) + 1;
-    } while (map.wallGrid[x * map.size + y] !== 0);
-
-    this.x = x;
-    this.y = y;
+    var pos = map.place();
+    this.x = pos.x;
+    this.y = pos.y;
     this.direction = direction;
     this.paces = 0;
 }
@@ -90,12 +85,23 @@ Player.prototype.update = function(controls, map, seconds) {
         this.walk(-3 * seconds, map);
 };
 
+function Chicken(x,y){
+    this.texture = new canvasToImage(drawChicken, 512, 512);
+    this.width = 0.5;
+    this.height = 0.5;
+    this.floorOffset = 0;
+    this.distanceFromPlayer = 0;
+	this.x = x;
+	this.y = y;
+}
+
 function Map(size, skybox, wallTexture) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
     this.skybox = skybox;
     this.wallTexture = wallTexture;
     this.light = 0;
+    this.chickens = [];
 
     for (var i = 0; i < this.size; i++) {
         for (var j = 0; j < this.size; j++) {
@@ -107,14 +113,25 @@ function Map(size, skybox, wallTexture) {
             }
         }
     }
+
     for (var i = 0; i < 20; i++) {
-        var x, y;
-        do {
-            x = Math.floor(Math.random() * (this.size - 2)) + 1;
-            y = Math.floor(Math.random() * (this.size - 2)) + 1;
-        } while (this.wallGrid[x * this.size + y] !== 0);
-        this.wallGrid[x * this.size + y] = 1;
+        var pos = this.place();
+        this.wallGrid[pos.x * this.size + pos.y] = 1;
     }
+
+    for (var i = 0; i < 12; i++) {
+        var pos = this.place();
+        this.chickens.push( new Chicken(pos.x, pos.y) );
+    }
+};
+
+Map.prototype.place = function() {
+    var X, Y;
+    do {
+        X = Math.floor(Math.random() * (this.size - 2)) + 1;
+        Y = Math.floor(Math.random() * (this.size - 2)) + 1;
+    } while (this.wallGrid[X * this.size + Y] !== 0);
+    return {x: X, y: Y};
 };
 
 Map.prototype.get = function(x, y) {
@@ -162,6 +179,8 @@ Map.prototype.cast = function(point, angle, range) {
         var dy = sin < 0 ? shiftY : 0;
         step.height = self.get(step.x - dx, step.y - dy);
         step.distance = distance + Math.sqrt(step.length2);
+        step.object = self.chickens[Math.floor(step.y - dy) * self.size +
+            Math.floor(step.x - dx)];
         if (shiftX)
             step.shading = cos < 0 ? 2 : 0;
         else
@@ -210,23 +229,125 @@ Camera.prototype.drawSky = function(direction, sky, ambient) {
     this.ctx.restore();
 };
 
+Camera.prototype.drawSpriteColumn = function(player,map,column,columnProps,sprites) {
+
+	var ctx = this.ctx,
+		left = Math.floor(column * this.spacing),
+		width = Math.ceil(this.spacing),
+		angle = Math.PI * .4 * (column / this.resolution - 0.5),
+		columnWidth = this.width / this.resolution,
+		sprite,props,obj,textureX,height,projection, mappedColumnObj,spriteIsInColumn,top;
+
+	sprites = sprites.filter(function(sprite){
+	 return !columnProps.hit || sprite.distanceFromPlayer < columnProps.hit;
+	});
+
+
+	for(var i = 0; i < sprites.length; i++){
+		sprite = sprites[i];
+
+		//determine if sprite should be drawn based on current column position and sprite width
+        spriteIsInColumn = left > sprite.render.cameraXOffset -
+            ( sprite.render.width / 2 ) &&
+            left < sprite.render.cameraXOffset +
+            ( sprite.render.width / 2 );
+
+		if(spriteIsInColumn){
+			textureX = Math.floor( sprite.texture.width / sprite.render.numColumns * ( column - sprite.render.firstColumn ) );
+
+			this.ctx.fillStyle = 'black';
+			this.ctx.globalAlpha = 1;
+
+			var brightness = Math.max(sprite.distanceFromPlayer / this.lightRange - map.light, 0) * 100;
+
+			sprite.texture.image.style.webkitFilter = 'brightness(' + brightness + '%)';
+			sprite.texture.image.style.filter = 'brightness(' + brightness  + '%)';
+
+			ctx.drawImage(sprite.texture.image, textureX, 0, 1, sprite.texture.height, left, sprite.render.top, width, sprite.render.height);
+		}
+	};
+};
+
+Camera.prototype.drawSprites = function(player,map,columnProps){
+
+    var screenWidth = this.width,
+        screenHeight = this.height,
+        screenRatio = screenWidth / Math.PI * .4,
+        resolution = this.resolution;
+
+    var sprites = Array.prototype.slice.call(map.chickens).map(function(sprite) {
+        var distX = sprite.x - player.x,
+            distY = sprite.y - player.y,
+            width = sprite.width * screenWidth / sprite.distanceFromPlayer,
+            height = sprite.height * screenHeight /  sprite.distanceFromPlayer,
+            renderedFloorOffset = sprite.floorOffset / sprite.distanceFromPlayer,
+            angleToPlayer = Math.atan2(distY,distX),
+            angleRelativeToPlayerView = player.direction - angleToPlayer,
+            top = (screenHeight / 2) * (1 + 1 / sprite.distanceFromPlayer) - height;
+
+        if(angleRelativeToPlayerView >= CIRCLE / 2){
+            angleRelativeToPlayerView -= CIRCLE;
+        }
+
+        var cameraXOffset = ( camera.width / 2 ) - (screenRatio * angleRelativeToPlayerView),
+            numColumns = width / screenWidth * resolution,
+            firstColumn = Math.floor( (cameraXOffset - width/2 ) / screenWidth * resolution);
+
+        sprite.distanceFromPlayer = Math.sqrt( Math.pow( distX, 2) + Math.pow( distY, 2) );
+        sprite.render = {
+            width: width,
+            height: height,
+            angleToPlayer: angleRelativeToPlayerView,
+            cameraXOffset: cameraXOffset,
+            distanceFromPlayer: sprite.distanceFromPlayer,
+            numColumns: numColumns,
+            firstColumn: firstColumn,
+            top: top
+        };
+
+        return sprite;
+    })
+    // sort sprites in distance order
+    .sort(function(a,b) {
+        if(a.distanceFromPlayer < b.distanceFromPlayer){
+            return 1;
+        }
+        if(a.distanceFromPlayer > b.distanceFromPlayer){
+            return -1;
+        }
+        return 0;
+    });
+
+    this.ctx.save();
+    for (var column = 0; column < this.resolution; column++) {
+        this.drawSpriteColumn(player,map,column,columnProps[column], sprites);
+    }
+    this.ctx.restore();
+};
+
 Camera.prototype.drawColumns = function(player, map) {
     this.ctx.save();
+    var allObjects = [];
     for (var column = 0; column < this.resolution; column++) {
         var x = column / this.resolution - 0.5;
         var angle = Math.atan2(x, this.focalLength);
         var ray = map.cast(player, player.direction + angle, this.range);
-        this.drawColumn(column, ray, angle, map);
+        allObjects.push(this.drawColumn(column, ray, angle, map));
     }
+    this.ctx.restore();
+    this.ctx.save();
+    this.drawSprites(player, map, allObjects);
     this.ctx.restore();
 };
 
 Camera.prototype.drawColumn = function(column, ray, angle, map) {
     var ctx = this.ctx;
-    var texture = map.wallTexture;
+    var wallTexture = map.wallTexture;
     var left = Math.floor(column * this.spacing);
     var width = Math.ceil(this.spacing);
     var hit = -1;
+    var objects = [];
+    var hitDistance;
 
     while (++hit < ray.length && ray[hit].height <= 0);
 
@@ -234,19 +355,30 @@ Camera.prototype.drawColumn = function(column, ray, angle, map) {
         var step = ray[s];
 
         if (s === hit) {
-            var textureX = Math.floor(texture.width * step.offset);
+            var textureX = Math.floor(wallTexture.width * step.offset);
             var wall = this.project(step.height, angle, step.distance);
 
             ctx.globalAlpha = 1;
-            ctx.drawImage(texture.image, textureX, 0, 1, texture.height,
-                left, wall.top, width, wall.height);
-
+            ctx.drawImage(wallTexture.image, textureX, 0, 1,
+                wallTexture.height, left, wall.top, width, wall.height);
             ctx.fillStyle = '#000000';
             ctx.globalAlpha = Math.max((step.distance + step.shading) /
                 this.lightRange - map.light, 0);
             ctx.fillRect(left, wall.top, width, wall.height);
+            hitDistance = step.distance;
+        } else if(step.object) {
+			objects.push({
+				object: step.object,
+				distance: step.distance,
+				offset: step.offset,
+				angle: angle
+			});
         }
     }
+	return {
+		objects: objects,
+		hit: hitDistance
+	}
 };
 
 
