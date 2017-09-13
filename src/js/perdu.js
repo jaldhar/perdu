@@ -122,14 +122,15 @@ function Map(size) {
     for (var i = 0; i < 12; i++) {
         var pos = this.place();
         this.chickens.push( new Chicken(pos.x, pos.y) );
+        this.wallGrid[pos.x * this.size + pos.y] = 2;
     }
 };
 
 Map.prototype.place = function() {
     var X, Y;
     do {
-        X = Math.floor(Math.random() * (this.size - 2)) + 1;
-        Y = Math.floor(Math.random() * (this.size - 2)) + 1;
+        X = Math.floor(Math.random() * this.size);
+        Y = Math.floor(Math.random() * this.size);
     } while (this.wallGrid[X * this.size + Y] !== 0);
     return {x: X, y: Y};
 };
