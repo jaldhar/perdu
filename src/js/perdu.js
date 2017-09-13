@@ -4,32 +4,11 @@ var CIRCLE = Math.PI * 2;
 var MOBILE = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent)
 
 function Controls() {
-    this.codes  = { 37: 'left', 39: 'right', 38: 'forward', 40: 'backward' };
-    this.states = { 'left': false, 'right': false, 'forward': false, 'backward': false };
+    this.codes  = { 32: 'pause', 37: 'left', 39: 'right', 38: 'forward'};
+    this.states = { 'pause': false, 'left': false, 'right': false, 'forward': false};
     document.addEventListener('keydown', this.onKey.bind(this, true), false);
     document.addEventListener('keyup', this.onKey.bind(this, false), false);
-    document.addEventListener('touchstart', this.onTouch.bind(this), false);
-    document.addEventListener('touchmove', this.onTouch.bind(this), false);
-    document.addEventListener('touchend', this.onTouchEnd.bind(this), false);
 }
-
-Controls.prototype.onTouch = function(e) {
-    var t = e.touches[0];
-    this.onTouchEnd(e);
-    if (t.pageY < window.innerHeight * 0.5)
-        this.onKey(true, { keyCode: 38 });
-    else if (t.pageX < window.innerWidth * 0.5)
-        this.onKey(true, { keyCode: 37 });
-    else if (t.pageY > window.innerWidth * 0.5)
-        this.onKey(true, { keyCode: 39 });
-};
-
-Controls.prototype.onTouchEnd = function(e) {
-    this.states = { 'left': false, 'right': false, 'forward': false,
-        'backward': false };
-    e.preventDefault();
-    e.stopPropagation();
-};
 
 Controls.prototype.onKey = function(val, e) {
     var state = this.codes[e.keyCode];
@@ -57,7 +36,6 @@ function Player(map, direction) {
     this.x = pos.x;
     this.y = pos.y;
     this.direction = direction;
-    this.paces = 0;
     this.score = 0;
     this.dead = false;
 }
@@ -67,24 +45,49 @@ Player.prototype.rotate = function(angle) {
 };
 
 Player.prototype.walk = function(distance, map) {
-    var dx = Math.cos(this.direction) * distance;
-    var dy = Math.sin(this.direction) * distance;
-    if (map.get(this.x + dx, this.y) <= 0)
-        this.x += dx;
-    if (map.get(this.x, this.y + dy) <= 0)
-        this.y += dy;
-    this.paces += distance;
+    var dx = this.x;
+    var dy = this.y;
+
+    var directionDegrees = this.direction * (180 / Math.PI);
+    if (directionDegrees >= 337.5 && directionDegrees < 22.5) {
+        dy = this.y - distance; // N
+    } else if (directionDegrees >= 22.5 && directionDegrees < 67.5) {
+        dy = this.y - distance; dx = this.x + distance; // NE
+    } else if (directionDegrees >= 67.5 && directionDegrees < 112.5) {
+        dx = this.x + distance; // E
+    } else if (directionDegrees >= 112.5 && directionDegrees < 157.5) {
+        dy = this.y + distance; dx = this.x + distance; // SE
+    } else if (directionDegrees >= 157.5 && directionDegrees < 202.5) {
+        dy = this.y + distance; // S
+    } else if (directionDegrees >= 202.5 && directionDegrees < 247.5) {
+        dy = this.y + distance; dx = this.x - distance; // SW
+    } else if (directionDegrees >= 247.5 && directionDegrees < 292.5) {
+        dx = this.x - distance; // W
+    } else if (directionDegrees >= 292.5 && directionDegrees < 337.5) {
+        dy = this.y - distance; dx = this.x - distance; // NW
+    }
+
+    if (map.get(dx, dy) <= 0) {
+        this.x = dx;
+        this.y = dy;
+    }
+    map.updateChickens(this);
 };
 
+Player.prototype.pause = function(map) {
+    console.log("pausing");
+    map.updateChickens(this);
+}
+
 Player.prototype.update = function(controls, map, seconds) {
+    if (controls.pause)
+        this.pause(map);
     if (controls.left)
         this.rotate(-Math.PI * seconds);
     if (controls.right)
         this.rotate(Math.PI * seconds);
     if (controls.forward)
-        this.walk(3 * seconds, map);
-    if (controls.backward)
-        this.walk(-3 * seconds, map);
+        this.walk(1, map);
 };
 
 function Chicken(x,y){
@@ -95,7 +98,75 @@ function Chicken(x,y){
     this.distanceFromPlayer = 0;
 	this.x = x;
 	this.y = y;
-}
+};
+
+Chicken.prototype.update = function(map, player) {
+    var isMoving = false;
+    var self = this;
+
+    var diagonal = function(map, row, col){
+
+        var possiblePositions = [
+            {x: self.x + col, y: self.y + row},
+            {x: self.x, y: self.y + row},
+            {x: self.x + col, y: self.y},
+        ];
+
+        for (var i = 0; i < possiblePositions.length; i++) {
+            if (map.get(possiblePositions[i].x, possiblePositions[i].y) === 0) {
+                self.x = possiblePositions[i].x;
+                self.y = possiblePositions[i].y;
+                return true;
+            }
+        }
+
+        for (var i = 0; i < possiblePositions.length; i++) {
+            if (map.get(possiblePositions[i].x, possiblePositions[i].y) === 1) {
+                self.x = possiblePositions[i].x;
+                self.y = possiblePositions[i].y;
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    if (this.y < player.y) {
+        if (this.x < player.x) { // chicken NW of player
+            isMoving = diagonal(map, 1, 1);
+
+        } else if (this.x > player.x) { // chicken NE of player
+            isMoving = diagonal(map, 1, -1);
+
+        } else {  // chicken N of player
+            this.y = this.y + 1;
+            isMoving = true;
+        }
+
+    } else if (this.y > player.y) {
+        if (this.x < player.x) { // chicken SW of player
+            isMoving = diagonal(map, -1, 1);
+
+        } else if (this.x > player.x) { // chicken SE of player
+            isMoving = diagonal(map, -1, -1);
+
+        } else  { // chicken S of player
+            this.y = this.y - 1;
+            isMoving = true;
+        }
+
+    } else {
+        if (this.x < player.x) { // Mho W of player
+            this.x = this.x + 1;
+            isMoving = true;
+
+        } else if (this.x > player.x) { // Mho E of player
+            this.x = this.x - 1;
+            isMoving = true;
+        }
+    }
+    return isMoving;
+};
 
 function Map(size) {
     this.size = size;
@@ -193,9 +264,31 @@ Map.prototype.cast = function(point, angle, range) {
     }
 };
 
-Map.prototype.update = function(seconds) {
-    if (this.light > 0)
-        this.light = Math.max(this.light - 10 * seconds, 0);
+Map.prototype.updateChickens = function(player) {
+    var self = this;
+    this.chickens.forEach(function(chicken, index, object){
+        var oldX = chicken.x;
+        var oldY = chicken.y;
+        if (chicken.update(self, player)) {
+            self.wallGrid[oldY * self.size + oldX] = 0;
+            var dest = self.get(chicken.x, chicken.y);
+            if (dest === 0) {
+                self.wallGrid[chicken.y * self.size + chicken.x] = 2;
+            } else if (dest === 1) {
+                object.splice(index, 1);
+                player.score++;
+            } else if (dest === 2) {
+                object.splice(index, 1);
+                player.score++;
+                self.wallGrid[chicken.y * self.size + chicken.x] = 0;
+            }
+
+            if (chicken.x === player.x && chicken.y === player.y) {
+                player.dead = true;
+            }
+        }
+
+    });
 };
 
 function Camera(canvas, resolution, focalLength) {
@@ -914,10 +1007,9 @@ var map = new Map(12);
 var controls = new Controls();
 var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
 var loop = new GameLoop();
-var player = new Player(map, Math.PI * 0.3);
+var player = new Player(map, 0);
 
 loop.start(function frame(seconds) {
-    map.update(seconds);
     player.update(controls.states, map, seconds);
     camera.render(player, map);
 });
