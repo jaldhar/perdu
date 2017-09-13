@@ -58,6 +58,8 @@ function Player(map, direction) {
     this.y = pos.y;
     this.direction = direction;
     this.paces = 0;
+    this.score = 0;
+    this.dead = false;
 }
 
 Player.prototype.rotate = function(angle) {
@@ -211,6 +213,7 @@ function Camera(canvas, resolution, focalLength) {
 Camera.prototype.render = function(player, map) {
     this.drawSky(player.direction, map.skybox, map.light);
     this.drawColumns(player, map);
+    this.drawHUD(map, player);
 };
 
 Camera.prototype.drawSky = function(direction, sky, ambient) {
@@ -382,6 +385,23 @@ Camera.prototype.drawColumn = function(column, ray, angle, map) {
 	}
 };
 
+Camera.prototype.drawHUD = function(map, player) {
+
+	var ctx = this.ctx;
+
+    ctx.save();
+    ctx.rotate(0);
+    ctx.fillStyle = "darkblue";
+    if (player.score === 12) {
+        ctx.fillText("YOU WIN! REFRESH TO PLAY AGAIN", 10, 10);
+    } else if (player.dead === true) {
+        ctx.fillText("YOU DIED! REFRESH TO PLAY AGAIN", 10, 10);
+    } else {
+        ctx.fillText("SCORE: " + player.score, 10, 10);
+    }
+    ctx.restore();
+
+};
 
 Camera.prototype.project = function(height, angle, distance) {
     var z = distance * Math.cos(angle);
