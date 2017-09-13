@@ -95,11 +95,11 @@ function Chicken(x,y){
 	this.y = y;
 }
 
-function Map(size, skybox, wallTexture) {
+function Map(size) {
     this.size = size;
     this.wallGrid = new Uint8Array(size * size);
-    this.skybox = skybox;
-    this.wallTexture = wallTexture;
+    this.skybox = new canvasToImage(drawBackground, 1200, 750);
+    this.wallTexture = new canvasToImage(drawWall, 1024, 1024);
     this.light = 0;
     this.chickens = [];
 
@@ -889,8 +889,7 @@ var drawWall = function(ctx) {
 };
 
 var display = document.getElementById('display');
-var map = new Map(12, new canvasToImage(drawBackground, 1200, 750),
-    new canvasToImage(drawWall, 1024, 1024));
+var map = new Map(12);
 var controls = new Controls();
 var camera = new Camera(display, MOBILE ? 160 : 320, 0.8);
 var loop = new GameLoop();
