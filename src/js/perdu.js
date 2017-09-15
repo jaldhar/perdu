@@ -306,7 +306,8 @@ function Camera(canvas, resolution, focalLength) {
 Camera.prototype.render = function(player, map) {
     this.drawSky(player.direction, map.skybox, map.light);
     this.drawColumns(player, map);
-    this.drawHUD(map, player);
+    // this.drawHUD(map, player);
+    this.drawMiniMap(map, player);
 };
 
 Camera.prototype.drawSky = function(direction, sky, ambient) {
@@ -494,6 +495,70 @@ Camera.prototype.drawHUD = function(map, player) {
     }
     ctx.restore();
 
+};
+
+Camera.prototype.drawMiniMap = function(map, player) {
+
+	var ctx = this.ctx,
+		mapWidth = this.width * .25,
+		mapHeight = mapWidth,
+		x = this.width - mapWidth - 20,
+		y = 20,
+		blockWidth = mapWidth / map.size,
+		blockHeight = mapHeight / map.size,
+		playerX = player.x / map.size * mapWidth, // coords on map
+		playerY = player.y / map.size * mapWidth,
+		origFillStyle = ctx.fillStyle,
+		wallIndex,
+		triangleX = x + playerX,
+		triangleY = y + playerY;
+
+	ctx.save();
+
+	ctx.globalAlpha = .3;
+	ctx.fillRect(x, y, mapWidth, mapHeight);
+	ctx.globalAlpha = .4;
+
+	ctx.fillStyle = '#ffffff';
+
+	for (var row = 0; row < map.size; row++) {
+		for (var col = 0; col < map.size; col++) {
+
+			wallIndex = row * map.size + col;
+
+			if (map.wallGrid[wallIndex] === 1) {
+				ctx.fillRect(x + (blockWidth * col), y + (blockHeight * row), blockWidth, blockHeight);
+			}
+
+		}
+	}
+
+	ctx.save();
+
+	for (var i = 0; i < map.chickens.length; i++){
+		if(map.chickens[i]){
+				ctx.fillStyle = 'blue';
+				ctx.globalAlpha = .8;
+				ctx.fillRect(x + (blockWidth * map.chickens[i].x) + blockWidth * .25, y + (blockHeight * map.chickens[i].y) + blockWidth * .25, blockWidth * .5, blockHeight * .5);
+		}
+	}
+
+	ctx.restore();
+
+	//player triangle
+	ctx.globalAlpha = 1;
+	ctx.fillStyle = '#FF0000';
+	ctx.moveTo(triangleX,triangleY);
+	ctx.translate(triangleX,triangleY);
+
+	ctx.rotate(player.direction - Math.PI * .5);
+	ctx.beginPath();
+	ctx.lineTo(-2, -3); // bottom left of triangle
+	ctx.lineTo(0, 2); // tip of triangle
+	ctx.lineTo(2,-3); // bottom right of triangle
+	ctx.fill();
+
+	ctx.restore();
 };
 
 Camera.prototype.project = function(height, angle, distance) {
