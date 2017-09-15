@@ -2,6 +2,8 @@ Perdu
 =====
 
 This is an entry in the 2017 [JS13KGames competition](http://js13kgames.com/).  The theme this year is "lost."
+(Note: if you have downloaded this from the git repository, the code that was submitted to the competition
+is on the js13k2017 branch.  The master branch contains ongoing development and mave have deviated significantly.)
 
 Design notes
 ============
