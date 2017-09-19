@@ -33,3 +33,14 @@ walls they will explode.  Kill them all and you can save the world.
 
 Use the left and right arrow keys to turn and the up arrow key to move forward.  Pressing space will let you stand still.
 (The chickens will still move.);
+
+Credits
+=======
+
+Initial game skeleton from [js13k-toolkit](https://github.com/lucaspenney/js13k-toolkit)
+
+Raycasting code from [Hunter Loftis](https://github.com/hunterloftis/playfuljs-demos/tree/gh-pages/raycaster)
+
+Chicken and Wall icons based on SVG icons from [game-icons.net](http://game-icons.net/)
+
+SVG to canvas converter: [professorcloud.com](http://professorcloud.com/svg-to-canvas/)
